@@ -251,7 +251,7 @@ class WeDocs_Ajax {
      *
      * @return array
      */
-    public function build_tree( $docs, $parent = 0 ) {
+    public static function build_tree( $docs, $parent = 0 ) {
         $result = array();
 
         if ( ! $docs ) {
@@ -265,8 +265,8 @@ class WeDocs_Ajax {
                 unset( $docs[ $key ] );
 
                 // build tree and sort
-                $child = $this->build_tree( $docs, $doc->ID );
-                usort( $child, array( $this, 'sort_callback' ) );
+                $child = self::build_tree( $docs, $doc->ID );
+                usort( $child, array( self, 'sort_callback' ) );
 
                 $result[] = array(
                     'post' => array(
@@ -295,7 +295,7 @@ class WeDocs_Ajax {
      *
      * @return int
      */
-    public function sort_callback( $a, $b ) {
+    public static function sort_callback( $a, $b ) {
         return $a['post']['order'] - $b['post']['order'];
     }
 }

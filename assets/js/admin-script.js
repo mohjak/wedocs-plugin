@@ -5,6 +5,13 @@
 /* global swal */
 /* global ajaxurl */
 
+
+$.ajaxSetup({
+    beforeSend: function(xhr) {
+        xhr.setRequestHeader('X-WP-Nonce', wpApiSettings.nonce);
+    }
+});
+
 Vue.directive('sortable', {
     bind: function(el, binding) {
         var $el = jQuery(el);
@@ -47,18 +54,19 @@ new Vue({
 
         dom.find('ul.docs').removeClass('not-loaded').addClass('loaded');
 
-        jQuery.get(ajaxurl, {
-            action: 'wedocs_admin_get_docs',
-            _wpnonce: weDocs.nonce
-        }, function(data) {
+        jQuery.get(this.endpoint('/docs'), function(data) {
             dom.find('.spinner').remove();
             dom.find('.no-docs').removeClass('not-loaded');
 
-            self.docs = data.data;
+            self.docs = data;
         });
     },
 
     methods: {
+
+        endpoint: function(end) {
+            return window.wpApiSettings.root + window.weDocs.rest + end;
+        },
 
         onError: function(error) {
             alert(error);
@@ -81,18 +89,22 @@ new Vue({
                     return false;
                 }
 
-                wp.ajax.send( {
-                    data: {
-                        action: 'wedocs_create_doc',
-                        title: inputValue,
-                        parent: 0,
-                        _wpnonce: weDocs.nonce
-                    },
-                    success: function(res) {
-                        that.docs.unshift( res );
-                    },
-                    error: this.onError
+                jQuery.get(this.endpoint('/admin/docs'), function(data) {
+                    dom.find('.spinner').remove();
+                    dom.find('.no-docs').removeClass('not-loaded');
+
+                    self.docs = data;
                 });
+
+                // jQuery.post(this.endpoint('/admin/docs'), {
+                //         title: inputValue,
+                //         parent: 0,
+                //     },
+                //     success: function(res) {
+                //         that.docs.unshift( res );
+                //     },
+                //     error: this.onError
+                // });
 
             });
         },

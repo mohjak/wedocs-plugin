@@ -53,9 +53,10 @@ class WeDocs_Admin {
 
         wp_enqueue_script( 'vuejs', $assets_url . '/js/vue' . $suffix . '.js' );
         wp_enqueue_script( 'sweetalert', $assets_url . '/js/sweetalert.min.js', array( 'jquery' ) );
-        wp_enqueue_script( 'wedocs-admin-script', $assets_url . "/js/admin-script.js", array( 'jquery', 'jquery-ui-sortable', 'wp-util' ), time(), true );
+        wp_enqueue_script( 'wedocs-admin-script', $assets_url . "/js/admin-script.js", array( 'jquery', 'jquery-ui-sortable', 'wp-util', 'wp-api' ), time(), true );
         wp_localize_script( 'wedocs-admin-script', 'weDocs', array(
             'nonce'                 => wp_create_nonce( 'wedocs-admin-nonce' ),
+            'rest'                  => 'wedocs/v1',
             'editurl'               => admin_url( 'post.php?action=edit&post=' ),
             'viewurl'               => home_url( '/?p=' ),
             'enter_doc_title'       => __( 'Enter doc title', 'wedocs' ),

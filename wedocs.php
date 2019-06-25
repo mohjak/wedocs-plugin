@@ -131,6 +131,11 @@ class WeDocs {
 
         // Loads frontend scripts and styles
         add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
+
+        add_action( 'rest_api_init', function() {
+            $admin_api = new WeDocs_REST_API();
+            $admin_api->register_routes();
+        } );
     }
 
     /**
@@ -165,6 +170,9 @@ class WeDocs {
         include_once dirname( __FILE__ ) . '/includes/class-search-widget.php';
         include_once dirname( __FILE__ ) . '/includes/class-theme-support.php';
 
+        // REST API
+        include_once dirname( __FILE__ ) . '/includes/rest-api/class-rest-api.php';
+
         if ( is_admin() ) {
             include_once dirname( __FILE__ ) . '/includes/admin/class-admin.php';
         } else {
@@ -172,8 +180,9 @@ class WeDocs {
         }
 
         if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
-            include_once dirname( __FILE__ ) . '/includes/class-ajax.php';
         }
+
+        include_once dirname( __FILE__ ) . '/includes/class-ajax.php';
     }
 
     /**
@@ -194,8 +203,9 @@ class WeDocs {
         }
 
         if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
-            new WeDocs_Ajax();
         }
+
+        new WeDocs_Ajax();
     }
 
     /**
