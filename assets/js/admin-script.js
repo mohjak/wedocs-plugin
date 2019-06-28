@@ -42,30 +42,71 @@ new Vue({
     data: {
         editurl: '',
         viewurl: '',
-        docs: []
+        rawDocs: []
+    },
+
+    computed:  {
+        docs: function() {
+            if (!this.rawDocs) {
+                return this.rawDocs;
+            }
+
+            return this.buildTree(this.rawDocs);
+        }
     },
 
     mounted: function() {
-        var self = this,
-            dom = jQuery( self.$el );
 
         this.editurl = weDocs.editurl;
         this.viewurl = weDocs.viewurl;
 
-        dom.find('ul.docs').removeClass('not-loaded').addClass('loaded');
+        // dom.find('ul.docs').removeClass('not-loaded').addClass('loaded');
 
-        jQuery.get(this.endpoint('/docs'), function(data) {
-            dom.find('.spinner').remove();
-            dom.find('.no-docs').removeClass('not-loaded');
-
-            self.docs = data;
-        });
+        this.fetchAllDocs();
     },
 
     methods: {
 
         endpoint: function(end) {
             return window.wpApiSettings.root + window.weDocs.rest + end;
+        },
+
+        fetchAllDocs() {
+            var self = this,
+                dom = jQuery( self.$el );
+
+            new Promise(function(resolve, reject) {
+                self.fetchDocs(1, [], resolve, reject);
+            })
+            .then(function(response) {
+                self.rawDocs = response;
+
+                dom.find('.spinner').remove();
+                dom.find('.no-docs').removeClass('not-loaded');
+                dom.find('ul.docs').removeClass('not-loaded').addClass('loaded');
+            });
+        },
+
+        fetchDocs(page, docs, resolve, reject) {
+            var self = this;
+
+            let url = this.endpoint('/docs?per_page=100&context=edit&status[]=publish&status[]=draft&status[]=pending&page=' + page);
+
+            return jQuery.get(url)
+                .done(function(data, statux, xhr) {
+                    docs = docs.concat(data);
+
+                    let totalPages = parseInt(xhr.getResponseHeader('X-WP-TotalPages'));
+
+                    if (page < totalPages ) {
+                        self.fetchDocs(page+1, docs, resolve, reject)
+                    } else {
+                        resolve(docs);
+                    }
+                })
+                .fail(function() {
+                    reject('Something went wrong');
+                });
         },
 
         onError: function(error) {
@@ -75,7 +116,7 @@ new Vue({
         addDoc: function() {
 
             var that = this;
-            this.docs = this.docs || [];
+            this.rawDocs = this.rawDocs || [];
 
             swal({
                 title: weDocs.enter_doc_title,
@@ -89,22 +130,12 @@ new Vue({
                     return false;
                 }
 
-                jQuery.get(this.endpoint('/admin/docs'), function(data) {
-                    dom.find('.spinner').remove();
-                    dom.find('.no-docs').removeClass('not-loaded');
-
-                    self.docs = data;
+                jQuery.post(that.endpoint('/docs'), {
+                    title: inputValue,
+                    parent: 0
+                }).done(function(response) {
+                    that.rawDocs.unshift( response );
                 });
-
-                // jQuery.post(this.endpoint('/admin/docs'), {
-                //         title: inputValue,
-                //         parent: 0,
-                //     },
-                //     success: function(res) {
-                //         that.docs.unshift( res );
-                //     },
-                //     error: this.onError
-                // });
 
             });
         },
@@ -158,7 +189,7 @@ new Vue({
             });
         },
 
-        removeSection: function(section, sections) {
+        removeSection: function(section) {
             var self = this;
 
             swal({
@@ -170,7 +201,7 @@ new Vue({
                 confirmButtonText: "Yes, delete it!",
                 closeOnConfirm: false
             }, function() {
-                self.removePost(section, sections);
+                self.removePost(section);
             });
         },
 
@@ -214,7 +245,7 @@ new Vue({
             });
         },
 
-        removeArticle: function(article, articles) {
+        removeArticle: function(article) {
             var self = this;
 
             swal({
@@ -226,31 +257,76 @@ new Vue({
                 confirmButtonText: "Yes, delete it!",
                 closeOnConfirm: false
             }, function(){
-                self.removePost(article, articles);
+                self.removePost(article);
             });
         },
 
-        removePost: function(index, items, message) {
+        removePost: function(doc, message) {
             message = message || 'This post has been deleted';
 
-            wp.ajax.send( {
-                data: {
-                    action: 'wedocs_remove_doc',
-                    id: items[index].post.id,
-                    _wpnonce: weDocs.nonce
-                },
+            var self = this;
+
+            jQuery.ajax({
+                url: this.endpoint('/docs/' + doc.id),
+                type: 'DELETE',
                 success: function() {
-                    Vue.delete(items, index);
                     swal( 'Deleted!', message, 'success' );
-                },
-                error: function(error) {
-                    alert( error );
+                    self.rawDocs.splice(self.rawDocs.indexOf(doc), 1);
                 }
             });
+
+            // wp.ajax.send( {
+            //     data: {
+            //         action: 'wedocs_remove_doc',
+            //         id: items[index].id,
+            //         _wpnonce: weDocs.nonce
+            //     },
+            //     success: function() {
+            //         Vue.delete(items, index);
+            //         swal( 'Deleted!', message, 'success' );
+            //     },
+            //     error: function(error) {
+            //         alert( error );
+            //     }
+            // });
         },
 
         toggleCollapse: function(event) {
             jQuery(event.target).siblings('ul.articles').toggleClass('collapsed');
+        },
+
+        buildTree: function (items) {
+            const tree = [];
+
+            // Cache found parent index
+            const map = {};
+
+            items.forEach(node => {
+                if (!node.hasOwnProperty('children')) {
+                    node.children = [];
+                }
+
+                // No parentId means top level
+                if (!node.parent) {
+                    return tree.push(node);
+                }
+
+                // Insert node as child of parent in flat array
+                let parentIndex = map[node.parent];
+
+                if (typeof parentIndex !== "number") {
+                    parentIndex = items.findIndex(el => el.id === node.parent);
+                    map[node.parent] = parentIndex;
+                }
+
+                if (!items[parentIndex].children) {
+                    return items[parentIndex].children = [node];
+                }
+
+                items[parentIndex].children.push(node);
+            });
+
+            return tree;
         }
     },
 });
